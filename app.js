@@ -24,8 +24,7 @@ const getReapChannel = async (id) => {
   Guild2Channel[id] = records[0].get("Channel");
   return records[0].get("Channel");
 };
-
-const getBoard = async (m) => {
+const getPingBoard = async (m) => {
   let people = await base("People")
     .select({
       filterByFormula: `{GuildID}='${m.guild.id}'`,
@@ -40,6 +39,30 @@ const getBoard = async (m) => {
 
   return `LEADERBOARD:\n\n${people
     .map((v, i) => `#${i + 1}) <@${v.did}>: ${v.points}\n`)
+    .join("")}`;
+};
+
+const getBoard = async (m) => {
+  let people = await base("People")
+    .select({
+      filterByFormula: `{GuildID}='${m.guild.id}'`,
+    })
+    .all();
+  people = await Promise.all(
+    people.map(async (person) => {
+      return {
+        did: (m.guild.members.cache.get(person.get("Tag")) != undefined
+          ? m.guild.members.cache.get(person.get("Tag"))
+          : await m.guild.members.fetch({ id: person.get("Tag") })
+        ).displayName,
+        points: person.get("Points"),
+      };
+    })
+  );
+  people.sort((a, b) => b.points - a.points);
+
+  return `LEADERBOARD:\n\n${people
+    .map((v, i) => `#${i + 1}) ${v.did}: ${v.points}\n`)
     .join("")}`;
 };
 
@@ -167,7 +190,7 @@ client.on("message", async (m) => {
 
         if (person.length > 0 && newNumber > person[0].get("WinCount")) {
           m.reply("CONGRATS YOU WONNNNNNN!! The final rankings are:\n\n");
-          m.channel.send(await getBoard(m));
+          m.channel.send(await getPingBoard(m));
 
           let people = await base("People")
             .select({
